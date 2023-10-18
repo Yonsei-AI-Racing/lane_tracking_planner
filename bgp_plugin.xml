@@ -1,0 +1,7 @@
+<library path="lib/liblane_tracking_planner">
+  <class name="lane_tracking_planner/LaneTrackingPlanner" type="lane_tracking_planner::LaneTrackingPlanner" base_class_type="nav_core::BaseGlobalPlanner">
+    <description>
+      A simple planner that tracks pre-defined path
+    </description>
+  </class>
+</library>
