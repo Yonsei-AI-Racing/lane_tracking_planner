@@ -86,7 +86,7 @@ namespace lane_tracking_planner {
     double min_dist = std::numeric_limits<double>::infinity(); 
 
     // If the vehicle is near by index 0, then search every index of the path
-    if(last_index > lane.size() - 100) last_index = 0;
+    if(last_index > lane.size() - lookahead_index_) last_index = 0;
 
     // Find the nearest point with current pose from last_index to end of the lane 
     for(int i = last_index; i < lane.size(); i++){
@@ -136,22 +136,29 @@ namespace lane_tracking_planner {
       return false;
     }
 
-    // Finde the nearest index and update last inex
+    // Find the nearest index and update last inex
     int current_index = find_current_index(start, lanes_[tracking_lane_], last_index_);
-    int goal_index = find_current_index(goal, lanes_[tracking_lane_], last_index_);
     last_index_ = current_index;
-    
-    // Change lane if the trajectory is not valid
-    while(!checkValidTrajectory(tracking_lane_, current_index, current_index + lookahead_index_)){
-      tracking_lane_ += 1; 
-      if(tracking_lane_ >= num_lane_) tracking_lane_ -= num_lane_;
-    }
-    
-    // Assign plan vector
-    if(goal_index < current_index) goal_index += lanes_[tracking_lane_].size();
-    plan = goal_index < current_index + lookahead_index_ ? getRingTrajectory(lanes_[tracking_lane_], current_index, goal_index) : 
-                                                            getRingTrajectory(lanes_[tracking_lane_], current_index, current_index + lookahead_index_); 
 
+    // Compare goal and the point of lookahead index
+    int goal_index = find_current_index(goal, lanes_[tracking_lane_], last_index_);
+    if(goal_index < current_index) goal_index += lanes_[tracking_lane_].size();
+    goal_index = goal_index < current_index + lookahead_index_ ? goal_index : current_index + lookahead_index_;
+
+    
+
+    // Change lane if the trajectory is not valid
+    if(!checkValidTrajectory(tracking_lane_, current_index, goal_index)){
+      // Check other lane and return false if it fails
+      if(!findValidTrajectory(tracking_lane_, current_index, goal_index)) return false;
+      else{
+        int current_index = find_current_index(start, lanes_[tracking_lane_], last_index_);
+        last_index_ = current_index;
+      }
+    }
+    // Assign plan vector
+    plan = getRingTrajectory(lanes_[tracking_lane_], current_index, goal_index);
+    plan = getInterpolatedTrajectory(plan, start);
     // Publish global plan for visualization
     nav_msgs::Path plan_msg;
     plan_msg.header.stamp = ros::Time::now();
@@ -164,26 +171,51 @@ namespace lane_tracking_planner {
   }
 
   bool LaneTrackingPlanner::checkValidTrajectory(int tracking_lane, int start_index, int goal_index){
-    bool isValid = true;
+
+    bool is_valid = true;
+    
     double start_x = lanes_[tracking_lane][start_index].pose.position.x;
     double start_y = lanes_[tracking_lane][start_index].pose.position.y;
     for(int i = start_index; i < goal_index; i++)
     {
-      double target_x = lanes_[tracking_lane][i].pose.position.x;
-      double target_y = lanes_[tracking_lane][i].pose.position.y;
-      double x_diff = lanes_[tracking_lane][i+1].pose.position.x - target_x;
-      double y_diff = lanes_[tracking_lane][i+1].pose.position.y - target_y;
+      int i_tmp = i;
+      if(i_tmp >= lanes_[tracking_lane].size()) i_tmp -= lanes_[tracking_lane].size();
+      double target_x = lanes_[tracking_lane][i_tmp].pose.position.x;
+      double target_y = lanes_[tracking_lane][i_tmp].pose.position.y;
+      double x_diff = lanes_[tracking_lane][i_tmp+1].pose.position.x - target_x;
+      double y_diff = lanes_[tracking_lane][i_tmp+1].pose.position.y - target_y;
       double target_yaw = angles::normalize_angle(atan2(y_diff, x_diff));
       double footprint_cost = footprintCost(target_x, target_y, target_yaw);
       if(footprint_cost >= 200)
       {
         ROS_WARN("footprint_cost : %.4f", footprint_cost);
-        isValid = false;
+        is_valid = false;
         break;
       }
     }
-    return isValid;
-
+    
+    return is_valid;
   }
+  int LaneTrackingPlanner::findValidTrajectory(int& tracking_lane, int start_index, int goal_index){
+    bool done = false;
 
+    // Check adjacent lanes
+    for(int i = 0;i < lanes_.size(); i++){
+      if(tracking_lane - i >= 0){
+        if(checkValidTrajectory(tracking_lane - i, start_index, goal_index)){
+          tracking_lane = tracking_lane - i;
+          done = true;
+          break;
+        }
+      }
+      if(tracking_lane + i < lanes_.size()){
+        if(checkValidTrajectory(tracking_lane + i, start_index, goal_index)){
+          tracking_lane = tracking_lane + i;
+          done = true;
+          break;
+        }
+      } 
+    }
+    return done;
+  }
 };

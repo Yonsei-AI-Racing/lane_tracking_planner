@@ -6,7 +6,10 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <lane_tracking_planner/spline.h>
+
 #include <geometry_msgs/PoseStamped.h>
+#include <tf2/utils.h>
 
 namespace geometry_utils
 {
@@ -119,7 +122,61 @@ std::vector<geometry_msgs::PoseStamped> getRingTrajectory(std::vector<geometry_m
         plan = path;
     }
 
+    tk::spline s;
+
+
     return plan;
+}
+
+std::vector<geometry_msgs::PoseStamped> getInterpolatedTrajectory(std::vector<geometry_msgs::PoseStamped> trajectory, geometry_msgs::PoseStamped start)
+{
+    // If the length of trajectory is less than 12, then return the original trajectory
+    if(trajectory.size() < 12) return trajectory;
+
+
+    // Add reference points with start position(and next) and point after 10 index(and next index)
+
+    double start_x = start.pose.position.x;
+    double start_y = start.pose.position.y;
+    double start_yaw = tf2::getYaw(start.pose.orientation);
+
+    std::vector<double> ptsx, ptsy;
+    ptsx.push_back(0.0);
+    ptsy.push_back(0.0);
+
+    ptsx.push_back(0.1);
+    ptsy.push_back(0.0);
+
+    for(int i=10; i<12; i++){
+        double x_shift = trajectory[i].pose.position.x - start_x;
+        double y_shift = trajectory[i].pose.position.y - start_y;
+        double x_frenet = x_shift*cos(-start_yaw) - y_shift*sin(-start_yaw);
+        double y_frenet = x_shift*sin(-start_yaw) + y_shift*cos(-start_yaw);
+        ptsx.push_back(x_frenet);
+        ptsy.push_back(y_frenet);
+    }
+
+    // Make spline curve
+    tk::spline s;
+    s.set_points(ptsx, ptsy);
+    std::vector<geometry_msgs::PoseStamped> interpolated_trajectory;
+    interpolated_trajectory.push_back(start);
+    for(int i=1; i<10; i++){
+        geometry_msgs::PoseStamped point;
+        double x_diff = ptsx[2] - ptsx[1];
+        double x_shift = x_diff * i /10;
+        double y_shift = s(x_shift);
+        double x_world = (x_shift*cos(start_yaw) - y_shift*sin(start_yaw)) + start_x;
+        double y_world = (x_shift*sin(start_yaw) + y_shift*cos(start_yaw)) + start_y;
+        point.pose.position.x = x_world;
+        point.pose.position.y = y_world;
+        interpolated_trajectory.push_back(point);
+    }
+
+    // integrate interpolated path with tracking lane
+    interpolated_trajectory.insert(interpolated_trajectory.end(), trajectory.begin()+10, trajectory.end());
+
+    return interpolated_trajectory;
 }
 
 }  // namespace geometry_utils

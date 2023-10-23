@@ -66,6 +66,8 @@ namespace lane_tracking_planner{
 
       bool checkValidTrajectory(int tracking_lane, int start_index, int goal_index);
 
+      int findValidTrajectory(int& tracking_lane, int start_index, int goal_index);
+
     private:
       costmap_2d::Costmap2DROS* costmap_ros_;
       double step_size_, min_dist_from_robot_;
