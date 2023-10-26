@@ -129,12 +129,11 @@ namespace lane_tracking_planner {
 
     plan.clear();
     costmap_ = costmap_ros_->getCostmap();
-
-    if(goal.header.frame_id != costmap_ros_->getGlobalFrameID()){
-      ROS_ERROR("This planner as configured will only accept goals in the %s frame, but a goal was sent in the %s frame.", 
-          costmap_ros_->getGlobalFrameID().c_str(), goal.header.frame_id.c_str());
-      return false;
-    }
+    // if(goal.header.frame_id != costmap_ros_->getGlobalFrameID()){
+    //   ROS_ERROR("This planner as configured will only accept goals in the %s frame, but a goal was sent in the %s frame.", 
+    //       costmap_ros_->getGlobalFrameID().c_str(), goal.header.frame_id.c_str());
+    //   return false;
+    // }
 
     // Find the nearest index and update last inex
     int current_index = find_current_index(start, lanes_[tracking_lane_], last_index_);

@@ -14,6 +14,16 @@
 namespace geometry_utils
 {
 
+template <typename T>
+void swap(T &x, T &y)
+{
+    T temp = std::move(x);
+    x = std::move(y);
+    y = std::move(temp);
+}
+
+std::string global_frame_id = "map";
+
 inline double euclidean_distance(
   const geometry_msgs::Pose & pos1,
   const geometry_msgs::Pose & pos2)
@@ -43,7 +53,7 @@ auto csv_read_row(std::istream& in, char delimiter)
     bool packs = false;
     std::vector<double> row;
     geometry_msgs::PoseStamped point;
-    point.header.frame_id = "map";
+    point.header.frame_id = global_frame_id;
 
     while (in.good())
     {
@@ -156,6 +166,9 @@ std::vector<geometry_msgs::PoseStamped> getInterpolatedTrajectory(std::vector<ge
         ptsy.push_back(y_frenet);
     }
 
+    // If the x coordinate of 4th point is less then 3rd, then swap the position between two points.
+    if(ptsx[2] > ptsx[3]) swap(ptsx[2], ptsx[3]);
+
     // Make spline curve
     tk::spline s;
     s.set_points(ptsx, ptsy);
@@ -163,6 +176,7 @@ std::vector<geometry_msgs::PoseStamped> getInterpolatedTrajectory(std::vector<ge
     interpolated_trajectory.push_back(start);
     for(int i=1; i<10; i++){
         geometry_msgs::PoseStamped point;
+        point.header.frame_id = global_frame_id;
         double x_diff = ptsx[2] - ptsx[1];
         double x_shift = x_diff * i /10;
         double y_shift = s(x_shift);
