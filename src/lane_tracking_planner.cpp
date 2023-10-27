@@ -144,8 +144,6 @@ namespace lane_tracking_planner {
     if(goal_index < current_index) goal_index += lanes_[tracking_lane_].size();
     goal_index = goal_index < current_index + lookahead_index_ ? goal_index : current_index + lookahead_index_;
 
-    
-
     // Change lane if the trajectory is not valid
     if(!checkValidTrajectory(tracking_lane_, current_index, goal_index)){
       // Check other lane and return false if it fails
@@ -155,9 +153,11 @@ namespace lane_tracking_planner {
         last_index_ = current_index;
       }
     }
+
     // Assign plan vector
     plan = getRingTrajectory(lanes_[tracking_lane_], current_index, goal_index);
     plan = getInterpolatedTrajectory(plan, start);
+
     // Publish global plan for visualization
     nav_msgs::Path plan_msg;
     plan_msg.header.stamp = ros::Time::now();
