@@ -64,7 +64,7 @@ namespace lane_tracking_planner{
 
       int find_current_index(const geometry_msgs::PoseStamped& current_pose , std::vector<geometry_msgs::PoseStamped> lane, int last_index);
 
-      bool checkValidTrajectory(int tracking_lane, int start_index, int goal_index);
+      std::pair<bool, double> checkValidTrajectory(int tracking_lane, int start_index, int goal_index);
 
       int findValidTrajectory(int& tracking_lane, int start_index, int goal_index);
 
