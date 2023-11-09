@@ -11,6 +11,7 @@ find_package(catkin REQUIRED
     tf2
     tf2_geometry_msgs
     tf2_ros
+    geometry_msgs
 )
 
 include_directories(
@@ -30,6 +31,7 @@ catkin_package(
     roscpp
     tf2
     tf2_ros
+    geometry_msgs
 )
 
 add_library(lane_tracking_planner src/lane_tracking_planner.cpp)

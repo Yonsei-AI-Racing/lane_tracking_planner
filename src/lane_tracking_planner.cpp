@@ -3,6 +3,8 @@
 #include <tf2/convert.h>
 #include <tf2/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <geometry_msgs/Twist.h>
+
 
 //register this planner as a BaseGlobalPlanner plugin
 PLUGINLIB_EXPORT_CLASS(lane_tracking_planner::LaneTrackingPlanner, nav_core::BaseGlobalPlanner)
@@ -41,6 +43,10 @@ namespace lane_tracking_planner {
 
       plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
 
+        //추가된 부분!!
+      ros::NodeHandle nh;
+      cmd_vel_pub_ = nh.advertise<geometry_msgs::Twist>("cmd_vel", 5);  //임의로 5으로 설정한 것 !
+
       initialized_ = true;
 
     }
@@ -72,6 +78,8 @@ namespace lane_tracking_planner {
 
       lanes_.push_back(lane);
     }
+    
+    // ROS_INFO("Initialize %d lanes from pre-defined path file!", static_cast<int>(lanes_.size()));
 
     ROS_INFO("Intialize %d lanes from pre defined path file!", lanes_.size());
   }
@@ -254,9 +262,16 @@ namespace lane_tracking_planner {
 
     // Stop the vehicle if no path is valid and the invalid distance is below a certain threshold
     if(max_valid_distance <= stop_threshold){
-      // Stop the vehicle or handle according to your stopping logic
-      ROS_ERROR("No valid path found and below stop threshold. Stopping the vehicle.");
-      done = false;
+
+    // 추가된 부분 !!
+    geometry_msgs::Twist stop_msg;
+    stop_msg.linear.x = 0.0;
+    stop_msg.angular.z = 0.0;
+    cmd_vel_pub_.publish(stop_msg);
+
+
+    ROS_ERROR("No valid path found and below stop threshold. Stopping the vehicle.");
+    done = false;
     }
 
     // Return false if no lanes are valid and above the stop threshold

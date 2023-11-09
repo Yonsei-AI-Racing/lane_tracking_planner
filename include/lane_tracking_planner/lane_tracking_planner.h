@@ -78,6 +78,8 @@ namespace lane_tracking_planner{
       costmap_2d::Costmap2D* costmap_;
       base_local_planner::WorldModel* world_model_; ///< @brief The world model that the controller will use
 
+      ros::Publisher cmd_vel_pub_;
+
       // Publisher & Subscriber 
 
       ros::Publisher plan_pub_;
