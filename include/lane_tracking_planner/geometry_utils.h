@@ -140,8 +140,10 @@ std::vector<geometry_msgs::PoseStamped> getRingTrajectory(std::vector<geometry_m
 
 std::vector<geometry_msgs::PoseStamped> getInterpolatedTrajectory(std::vector<geometry_msgs::PoseStamped> trajectory, geometry_msgs::PoseStamped start)
 {
+    int lookahead_index = 15;
+    bool linear_interpolation = false;
     // If the length of trajectory is less than 12, then return the original trajectory
-    if(trajectory.size() < 12) return trajectory;
+    if(trajectory.size() < lookahead_index+2) return trajectory;
 
 
     // Add reference points with start position(and next) and point after 10 index(and next index)
@@ -157,7 +159,7 @@ std::vector<geometry_msgs::PoseStamped> getInterpolatedTrajectory(std::vector<ge
     ptsx.push_back(0.1);
     ptsy.push_back(0.0);
 
-    for(int i=10; i<12; i++){
+    for(int i=lookahead_index; i<lookahead_index+2; i++){
         double x_shift = trajectory[i].pose.position.x - start_x;
         double y_shift = trajectory[i].pose.position.y - start_y;
         double x_frenet = x_shift*cos(-start_yaw) - y_shift*sin(-start_yaw);
@@ -168,18 +170,23 @@ std::vector<geometry_msgs::PoseStamped> getInterpolatedTrajectory(std::vector<ge
 
     // If the x coordinate of 4th point is less then 3rd, then swap the position between two points.
     if(ptsx[2] > ptsx[3]) swap(ptsx[2], ptsx[3]);
-
-    // Make spline curve
+    else if(ptsx[2] == ptsx[3]){
+        linear_interpolation = true;
+    }
     tk::spline s;
-    s.set_points(ptsx, ptsy);
+    // Make spline curve
+    if(!linear_interpolation){
+        s.set_points(ptsx, ptsy);
+    }
+
     std::vector<geometry_msgs::PoseStamped> interpolated_trajectory;
     interpolated_trajectory.push_back(start);
-    for(int i=1; i<10; i++){
+    for(int i=1; i<lookahead_index; i++){
         geometry_msgs::PoseStamped point;
         point.header.frame_id = global_frame_id;
         double x_diff = ptsx[2] - ptsx[1];
         double x_shift = x_diff * i /10;
-        double y_shift = s(x_shift);
+        double y_shift = linear_interpolation == true ?   (ptsy[2] - ptsy[1]) * (i /10) : s(x_shift);
         double x_world = (x_shift*cos(start_yaw) - y_shift*sin(start_yaw)) + start_x;
         double y_world = (x_shift*sin(start_yaw) + y_shift*cos(start_yaw)) + start_y;
         point.pose.position.x = x_world;
@@ -188,7 +195,7 @@ std::vector<geometry_msgs::PoseStamped> getInterpolatedTrajectory(std::vector<ge
     }
 
     // integrate interpolated path with tracking lane
-    interpolated_trajectory.insert(interpolated_trajectory.end(), trajectory.begin()+10, trajectory.end());
+    interpolated_trajectory.insert(interpolated_trajectory.end(), trajectory.begin()+lookahead_index, trajectory.end());
 
     return interpolated_trajectory;
 }
