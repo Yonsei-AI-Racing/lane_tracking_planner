@@ -5,6 +5,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <geometry_msgs/Twist.h>
 #include <algorithm>
+#include <lane_tracking_planner/geometry_utils.h>
 
 // register this planner as a BaseGlobalPlanner plugin
 PLUGINLIB_EXPORT_CLASS(lane_tracking_planner::LaneTrackingPlanner, nav_core::BaseGlobalPlanner)
@@ -13,10 +14,10 @@ namespace lane_tracking_planner
 {
 
     LaneTrackingPlanner::LaneTrackingPlanner()
-        : costmap_ros_(NULL), initialized_(false), vel_path_(0.0), vel_lc_(0.0), current_zone_idx_(-1), is_lane_changing_(false) {}
+        : costmap_ros_(NULL), initialized_(false), vel_path_(0.0), vel_lc_(5.0), current_zone_index_(-1), is_lane_changing_(false) {}
 
     LaneTrackingPlanner::LaneTrackingPlanner(std::string name, costmap_2d::Costmap2DROS *costmap_ros)
-        : costmap_ros_(NULL), initialized_(false), vel_path_(0.0), vel_lc_(0.0), current_zone_idx_(-1), is_lane_changing_(false)
+        : costmap_ros_(NULL), initialized_(false), vel_path_(0.0), vel_lc_(5.0), current_zone_index_(-1), is_lane_changing_(false)
     {
         initialize(name, costmap_ros);
     }
@@ -84,39 +85,73 @@ namespace lane_tracking_planner
 
         // ROS_INFO("Initialize %d lanes from pre-defined path file!", static_cast<int>(lanes_.size()));
 
-        ROS_INFO("Intialize %d lanes from pre defined path file!", lanes_.size());
+        ROS_INFO("Intialize %d lanes from pre defined path file!", static_cast<int>(lanes_.size()));
     }
 
     void LaneTrackingPlanner::updateDesiredVelocity(int current_index)
     {
         int zone_idx = -1;
-        if (current_index >= 140 && current_index < 220)
+        if (current_index >= 165 && current_index < 291)
         {
             vel_path_ = 4.0;
-            zone_idx = 1;
+            zone_idx = 1; // S-curve uphill
         }
-        else if (current_index >= 220 && current_index < 340)
+        else if (current_index >= 291 && current_index < 534)
         {
             vel_path_ = 4.5;
-            zone_idx = 2;
+            zone_idx = 2; // Straight uphill
         }
-        // ...
+        else if (current_index >= 534 && current_index < 606)
+        {
+            vel_path_ = 4.5;
+            zone_idx = 3; // U-curve
+        }
+        else if (current_index >= 606 && current_index < 846)
+        {
+            vel_path_ = 4.5;
+            zone_idx = 4; // Straight downhill
+        }
+        else if (current_index >= 846 && current_index < 934)
+        {
+            vel_path_ = 4.5;
+            zone_idx = 5; // S-curve downhill
+        }
+        else if (current_index >= 934 && current_index < 1180)
+        {
+            vel_path_ = 4.5;
+            zone_idx = 6; // Straight 2
+        }
+        else if (current_index >= 1180 && current_index < 1218)
+        {
+            vel_path_ = 4.5;
+            zone_idx = 7; // 90 curve 1
+        }
+        else if (current_index >= 1218 && current_index < 1300)
+        {
+            vel_path_ = 4.5;
+            zone_idx = 8; // Straight narrow
+        }
+        else if (current_index >= 1300 && current_index < 1334)
+        {
+            vel_path_ = 4.5;
+            zone_idx = 9; // 90 curve 2
+        }
         else
         {
             vel_path_ = 5.0;
-            zone_idx = 0;
+            zone_idx = 0; // Straight 1
         }
-        if (current_zone_idx_ != zone_idx)
+        if (current_zone_index_ != zone_idx)
         {
-            current_zone_idx_ = zone_idx;
+            current_zone_index_ = zone_idx;
             updateVelocity();
         }
     }
 
     void LaneTrackingPlanner::updateVelocity()
     {
-        set_param("desired_vel", std::min(vel_path_, vel_lc_)); // Have to be updated!!
-        print("vel_path: %.2f, vel_lc: %.2f, desired_vel: %.2f", vel_path_, vel_lc_, get_param("desired_vel"));
+        // set_param("desired_vel", std::min(vel_path_, vel_lc_)); // Have to be updated!!
+        ROS_ERROR("vel_path: %.2f, vel_lc: %.2f, desired_vel: %.2f", vel_path_, vel_lc_, std::min(vel_path_, vel_lc_));
     }
 
     int LaneTrackingPlanner::find_current_index(const geometry_msgs::PoseStamped &current_pose, std::vector<geometry_msgs::PoseStamped> lane,
@@ -147,7 +182,7 @@ namespace lane_tracking_planner
 
     void LaneTrackingPlanner::checkLaneChange(const geometry_msgs::PoseStamped& current_pose) {
         int nearest_index = find_current_index(current_pose, lanes_[tracking_lane_], last_index_);
-        double distance = euclidean_distance(current_pose.pose.position, lanes_[tracking_lane_][nearest_index].pose.position);
+        double distance = euclidean_distance(current_pose, lanes_[tracking_lane_][nearest_index]);
 
         if (is_lane_changing_ && distance < 0.5) {
             // lane changed
@@ -201,7 +236,7 @@ namespace lane_tracking_planner
 
         // Find the nearest index and update last index
         int current_index = find_current_index(start, lanes_[tracking_lane_], last_index_);
-        print("current_index: %d", current_index);
+        // ROS_INFO("current_index: %d", current_index);
         updateDesiredVelocity(current_index);
         checkLaneChange(start);
         last_index_ = current_index;
