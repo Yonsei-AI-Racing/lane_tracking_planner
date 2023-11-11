@@ -72,8 +72,6 @@ namespace lane_tracking_planner
 
         void checkLaneChange(const geometry_msgs::PoseStamped& current_pose);
 
-        double footprintCost(double x_i, double y_i, double theta_i);
-
         std::pair<bool, double> checkValidTrajectory(int tracking_lane, int start_index, int goal_index);
 
         int findValidTrajectory(int &tracking_lane, int start_index, int goal_index);
