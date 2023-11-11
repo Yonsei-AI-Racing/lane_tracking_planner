@@ -3,7 +3,7 @@
 #include <tf2/convert.h>
 #include <tf2/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <geometry_msgs/Twist.h>
+
 
 
 //register this planner as a BaseGlobalPlanner plugin
@@ -40,12 +40,16 @@ namespace lane_tracking_planner {
       initializePath(path_file_name_, num_lane_);
 
       // Initialize Publish & Subscriber 
-
       plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
+      
+      
 
         //추가된 부분!!
       ros::NodeHandle nh;
       cmd_vel_pub_ = nh.advertise<geometry_msgs::Twist>("cmd_vel", 5);  //임의로 5으로 설정한 것 !
+      cmd_sub_ = nh.subscribe("cmd_vel", 1, &LaneTrackingPlanner::cmdVelCB, this);
+
+      reconfigure_client = boost::make_shared<dynamic_reconfigure::Client<mpc_local_planner::DynamicParamsConfig>>("/erp42_1/move_base/MpcLocalPlannerROS");
 
       initialized_ = true;
 
@@ -128,6 +132,8 @@ namespace lane_tracking_planner {
   bool LaneTrackingPlanner::makePlan(const geometry_msgs::PoseStamped& start, 
       const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& plan){
 
+    ROS_INFO("current_velocity : %.3f", current_cmd_.linear.x);
+
     if(!initialized_){
       ROS_ERROR("The planner has not been initialized, please call initialize() to use the planner");
       return false;
@@ -173,6 +179,7 @@ namespace lane_tracking_planner {
     plan_msg.poses = plan;
     plan_pub_.publish(plan_msg);
     
+
     bool done = true;
     return (done);
   }
@@ -218,7 +225,7 @@ namespace lane_tracking_planner {
     bool done = false;
     double max_valid_distance = checkValidTrajectory(tracking_lane, start_index, goal_index).second;
     int best_lane = tracking_lane; // Initialize with current lane as the default
-    double stop_threshold = 20.0;
+    double stop_threshold = 5.0;
 
     // Check adjacent lanes
     for(int i = 1; i < lanes_.size(); i++){
@@ -257,6 +264,8 @@ namespace lane_tracking_planner {
     if(!done && max_valid_distance > 0){
       tracking_lane = best_lane; // Assign the best possible lane even if it's not valid
       ROS_WARN("Change lane to %d with max valid distance %f", best_lane, max_valid_distance);
+      
+
       done = true;
     }
 
@@ -264,10 +273,10 @@ namespace lane_tracking_planner {
     if(max_valid_distance <= stop_threshold){
 
     // 추가된 부분 !!
-    geometry_msgs::Twist stop_msg;
-    stop_msg.linear.x = 0.0;
-    stop_msg.angular.z = 0.0;
-    cmd_vel_pub_.publish(stop_msg);
+    // geometry_msgs::Twist stop_msg;
+    // stop_msg.linear.x = 0.0;
+    // stop_msg.angular.z = 0.0;
+    // cmd_vel_pub_.publish(stop_msg);
 
 
     ROS_ERROR("No valid path found and below stop threshold. Stopping the vehicle.");
@@ -276,5 +285,16 @@ namespace lane_tracking_planner {
 
     // Return false if no lanes are valid and above the stop threshold
     return done;
+  }
+
+
+  void LaneTrackingPlanner::changeVelocity(double desired_vel){
+    config.max_vel_x = desired_vel;
+    reconfigure_client->setConfiguration(config);
+    ros::Duration(1).sleep();
+  }
+
+  void LaneTrackingPlanner::cmdVelCB(const geometry_msgs::Twist msg){
+    current_cmd_ = msg;
   }
 };

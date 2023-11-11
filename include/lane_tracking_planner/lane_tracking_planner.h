@@ -15,9 +15,13 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
 #include <angles/angles.h>
+#include <geometry_msgs/Twist.h>
 
 #include <base_local_planner/world_model.h>
 #include <base_local_planner/costmap_model.h>
+
+#include <dynamic_reconfigure/client.h>
+#include <mpc_local_planner/DynamicParamsConfig.h>
 
 using namespace geometry_utils;
 
@@ -68,12 +72,19 @@ namespace lane_tracking_planner{
 
       int findValidTrajectory(int& tracking_lane, int start_index, int goal_index);
 
+      void changeVelocity(double desired_vel);
+
+      void cmdVelCB(const geometry_msgs::Twist msg);
+
     private:
       costmap_2d::Costmap2DROS* costmap_ros_;
       double step_size_, min_dist_from_robot_;
       int num_lane_;
       int lookahead_index_;
       std::string path_file_name_{"file_name"};
+      boost::shared_ptr<dynamic_reconfigure::Client<mpc_local_planner::DynamicParamsConfig>> reconfigure_client;
+      mpc_local_planner::DynamicParamsConfig config;
+
 
       costmap_2d::Costmap2D* costmap_;
       base_local_planner::WorldModel* world_model_; ///< @brief The world model that the controller will use
@@ -83,6 +94,9 @@ namespace lane_tracking_planner{
       // Publisher & Subscriber 
 
       ros::Publisher plan_pub_;
+      ros::Subscriber cmd_sub_;
+
+      geometry_msgs::Twist current_cmd_;
 
       /**
        * @brief  Checks the legality of the robot footprint at a position and orientation using the world model

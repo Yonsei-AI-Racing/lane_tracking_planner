@@ -26,6 +26,7 @@
     <depend>roscpp</depend>
     <depend>tf2</depend>
     <depend>tf2_ros</depend>
+    <depend>mpc_local_planner</depend>
 
     <export>
         <nav_core plugin="${prefix}/bgp_plugin.xml" />

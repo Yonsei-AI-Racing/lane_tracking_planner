@@ -12,6 +12,7 @@ find_package(catkin REQUIRED
     tf2_geometry_msgs
     tf2_ros
     geometry_msgs
+    mpc_local_planner
 )
 
 include_directories(
@@ -32,8 +33,8 @@ catkin_package(
     tf2
     tf2_ros
     geometry_msgs
+    mpc_local_planner
 )
-
 add_library(lane_tracking_planner src/lane_tracking_planner.cpp)
 add_dependencies(lane_tracking_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(lane_tracking_planner
