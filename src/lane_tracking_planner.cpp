@@ -382,11 +382,12 @@ namespace lane_tracking_planner
 
         if (!done && max_valid_distance > 0)
         {
+            if (tracking_lane != best_lane) {
+                vel_lc_ = vel_path_ * 0.5;
+                updateVelocity();
+                ROS_WARN("Change lane to %d with max valid distance %f", best_lane, max_valid_distance);
+            }
             tracking_lane = best_lane; // Assign the best possible lane even if it's not valid
-            ROS_WARN("Change lane to %d with max valid distance %f", best_lane, max_valid_distance);
-            // Reduce the velocity during lane change
-            vel_lc_ = vel_path_ * 0.5;
-            updateVelocity();
             done = true;
         }
 
